@@ -2,6 +2,7 @@
 layout: post
 title: "Abusing ELF Files' forgotten fields"
 date: 2025-12-04 12:00:00 +0300
+categories: [MalDev]
 tags: [elf, linux, maldev, reverse]
 author: kyrr1s
 math: false
