@@ -1,20 +1,20 @@
 ---
 title: "Abusing ELF Files' forgotten fields"
 date: 2025-12-04 16:00
-categories: [maldev]
+categories: [maldev, linux]
 tags: [elf, linux, maldev, reverse]
 description: Small journey to ELF header unused fields
 ---
 
 # Abusing ELF Files' forgotten fields
 
-Through my various experiments with ELF files, I noticed that the Linux loader ignores some fields in the ELF Header structure. This led me to the idea of a simple exploitation of this feature by inserting various bytes of code to confuse malware researchers and their tools, without limiting the functionality of the original code. As a result, a specialized utility and library were created. They help to modify code in your programs so that the program fails to launch if these insignificant bytes are altered. Thus, analysts must choose between dynamic and static code analysis.
+Through my various experiments with ELF files, I noticed that the Linux loader ignores some fields in the ELF Header structure. This led me to the idea of a simple exploitation of this feature by inserting various bytes of code to confuse malware researchers and their tools, without limiting the functionality of the original code. As a result, a specialized utility and library were created. They help to modify code in your programs so that the program fails to launch if these insignificant bytes are altered. Thus, analysts must choose between two options: either the program can not be analysed but it can be started, or the program can be analysed but it can not be started.
 
 ### **ELF File Loading Process**
 
 First, we need to understand exactly how Linux loads ELF files into memory and which kernel functions are used for this. For this, we'll use the `perf` utility and collect a trace of all functions during the execution of a test file, including those that load the file.
 
-Let's create a legitimate file and start tracing:
+Let's create a simple file and start tracing:
 
 ![Trace Start](/assets/img/abusingElf/trace-start.png){: width="700" height="auto" }
 
@@ -41,8 +41,8 @@ An ELF file is the basic executable file in the Linux OS. It contains all the in
 - Section Headers
 
 The ELF Header is mostly useless (as we'll see later) and contains basic file information. It and other headers can be viewed using the `readelf` utility:
-```
 
+```
 ~$ readelf -h sample
 
 ELF Header:
@@ -67,9 +67,9 @@ ELF Header:
   Section header string table index: 27
 ```
 
-For simplicity, we'll use the field names from the `readelf` output here and later, i.e., instead of `e_ident` we'll say `Magic`, and so on.
+For simplicity, we'll use the field names from the `readelf` output here and later, i.e., instead of `e_ident` we'll say `Magic`.
 
-Here's a brief description of the purpose of the fields (possible field values are not of interest to us here):
+Here's a brief description of the purpose of the fields:
 - `Magic` - ELF file identifier
 - `Class` - program bitness
 - `Data` - program byte order
@@ -102,7 +102,7 @@ The file first undergoes **checks** in this order:
 1. Checking the `Magic` field: must always be `0x7fELF`
 2. Checking the `Type` field: the file must be either executable (`ET_EXEC`) or a dynamically shared library (`ET_DYN`)
 3. Checking program architecture: generally, the `Machine` field must equal one of the values from [this file](https://github.com/torvalds/linux/blob/3f9f0252130e7dd60d41be0802bf58f6471c691d/include/uapi/linux/elf-em.h). However, in some cases additional conditions apply:
-   - For `ARCOMPACT` and `ARCV2`: the third byte in the `Flags` field must not equal `3` or `4` (eflags & 0x0x00000f00 != 0x000003(4)00)
+   - For `ARCOMPACT` and `ARCV2`: the third byte in the `Flags` field must not equal `3` or `4`
    - For `PARISC` and `RISCV`: the `Class` field must equal `1` (`ELF32`) or `2` (`ELF64`)
    - For `ARM`:
      - Both words of the `Entry point address` field are not even
@@ -118,7 +118,7 @@ Next follows a lengthy process of handling the rest of the ELF file content: par
 
 Thus, almost no checks are performed on the ELF header content. ELF Header fields not checked (ignored) by the loader and interpreter:
 1. `Data` field
-2. After `Class`
+2. `Class` field is ignored in most architectures
 3. `Version` field (both variants)
 4. `Padding bytes` field
 5. `OS/ABI` field is ignored in most architectures
@@ -142,7 +142,7 @@ In Linux architecture, these fields are called respectively:
 
 ### **Exploitation Concept and Implementation**
 
-This feature of the ELF header can be easily exploited: if these fields are not checked, they can store ANY data. The disadvantages of this technique include that this data can occupy a total of 24 bytes, and they are not contiguous in the file. These fields can store:
+This feature of the ELF header can be easily exploited: if these fields are not checked, they can store ANY data. The disadvantages of the technique is that this data can occupy a total of 24 bytes, and it is not contiguous in the file. These fields can store:
 
 1. Some key for decrypting file content, C2 address, or other similar artifact
 2. Any information whose integrity will be checked by the program
@@ -198,11 +198,11 @@ GDB also cannot start debugging the file:
 A header file `elfields.h` was implemented that handles comparing the current hash of unused ELF file fields with one pre-recorded by the developer. This functionality allows checking the file before running the main code - if the file was modified by a malware analyst and the field hash changed, then execution must be terminated. Moreover, implementing through a header file leaves the choice of method for storing the comparison hash, the location for calling the key comparison function, and the handling of the function execution result up to the developer. This makes the file's usage options more flexible.
 
 Below is an example of this header file in action:
-1) Compile the program with the `-lssl` `-lcrypto` options for hash function support
-2) Calculate the hash of unused fields - it does not change regardless of program content
-3) Call the hash check function inside the program, for example before starting the main program, and pass it the obtained hash as an argument
-4) Try changing some field of the program - imagine we're an analyst trying to fix the program header
-5) Now the program won't launch!
+1. Compile the program with the `-lssl` `-lcrypto` options for hash function support
+2. Calculate the hash of unused fields - it does not change regardless of program content
+3. Call the hash check function inside the program, for example before starting the main program, and pass it the obtained hash as an argument
+4. Try changing some field of the program - imagine we're an analyst trying to fix the program header
+5. Now the program won't launch!
 
 ![Checker](/assets/img/abusingElf/checker.png){: width="700" height="auto" }
 
