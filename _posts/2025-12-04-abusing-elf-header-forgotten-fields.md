@@ -1,13 +1,9 @@
 ---
-layout: post
 title: "Abusing ELF Files' forgotten fields"
-date: 2025-12-04 12:00:00 +0300
-categories: [MalDev]
+date: 2025-12-04 16:00
+categories: [maldev]
 tags: [elf, linux, maldev, reverse]
-author: kyrr1s
-math: false
-mermaid: false
-pin: false
+description: Small journey to ELF header unused fields
 ---
 
 # Abusing ELF Files' forgotten fields
