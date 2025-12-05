@@ -210,7 +210,7 @@ The complete implementation, including the `elfields` utility and `elfields.h` l
 
 ## **Detection**
 
-From Linux architecture we know all possible valid values of an unused fields. For example, field `EI_CLASS` can be `0x00`, `0x01` or `0x02`. Based on that info, we can easily write a simple yara-rule to detect that "strange" elf-files:
+From Linux architecture we know all possible valid values of an unused fields. For example, field `EI_CLASS` can be `0x00`, `0x01` or `0x02`. Based on that info, we can easily write a simple yara-rule to detect "strange" elf-files:
 
 ```
 rule Invalid_ELF_Header_Fields
