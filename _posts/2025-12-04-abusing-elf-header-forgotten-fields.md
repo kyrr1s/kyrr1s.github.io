@@ -147,7 +147,9 @@ This feature of the ELF header can be easily exploited: if these fields are not 
 1. Some key for decrypting file content, C2 address, or other similar artifact
 2. Any information whose integrity will be checked by the program
 
-In this article, I would like to focus on the second idea. By writing random data into these fields, we can confuse malware analysts and their analysis tools that are incorrectly configured for specific bytes in these fields. At the same time, the program will continue to execute successfully. If these bytes are modified by an analyst, the program will stop executing because it checks the integrity of its code. Thus, the analyst finds themselves in a difficult position: they must rely either only on static or only on dynamic code analysis. 
+In this article, I would like to focus on the second idea. Big thx for it to [@while_not_False](https://t.me/while_not_False)! 
+
+By writing random data into these fields, we can confuse malware analysts and their analysis tools that are incorrectly configured for specific bytes in these fields. At the same time, the program will continue to execute successfully. If these bytes are modified by an analyst, the program will stop executing because it checks the integrity of its code. Thus, the analyst finds themselves in a difficult position: they must rely either only on static or only on dynamic code analysis. 
 
 Of course, one can always find and patch the integrity check function, but various obfuscation mechanisms should help with that.
 
@@ -158,39 +160,50 @@ Of course, one can always find and patch the integrity check function, but vario
 First, a utility called `elfields` was written to modify and view the interesting fields in an ELF file.
 
 Example output of these fields on a normal program:
+
 ![Elfields Normal](/assets/img/abusingElf/elfields-normal.png){: width="700" height="auto" }
 
 The utility also allows calculating the hash of these fields, which will be useful to us later:
+
 ![Elfields Hash](/assets/img/abusingElf/elfields-hash.png){: width="700" height="auto" }
 
 Now let's change some fields of this file using the utility. In this case, I wrote the string "someMalwareKey" into the fields:
+
 ![Elfields Changes](/assets/img/abusingElf/elfields-changes.png){: width="700" height="auto" }
 
 But the file still launches!
+
 ![Elfields Launch](/assets/img/abusingElf/elfields-launch.png){: width="700" height="auto" }
 
 Let's try modifying something more complex than a "Hello World!" program. I chose the `ls` utility. As we can see, it also launches without issues:
+
 ![Elfields Ls](/assets/img/abusingElf/elfields-ls.png){: width="700" height="auto" }
 
 But the most interesting part is the reaction of various malware analysis tools.
 
 No disassembler can parse our modified program (I used [dogbolt](https://dogbolt.org/) project):
+
 ![Disasms](/assets/img/abusingElf/disasms.png){: width="700" height="auto" }
 
 Libraries for analyzing ELF files like `pyelftools` also crash:
+
 ![Pyelftools](/assets/img/abusingElf/pyelftools.png){: width="700" height="auto" }
 
 Tools for viewing files like [Detect It Easy](https://github.com/horsicq/Detect-It-Easy) cannot parse the file:
+
 ![Die](/assets/img/abusingElf/die.png){: width="700" height="auto" }
 
 IDA 9.2 correctly parsed the file magic:
+
 ![Ida Load](/assets/img/abusingElf/ida-load.png){: width="700" height="auto" }
 
 But crashes during further processing:
+
 ![Ida Warning](/assets/img/abusingElf/ida-warning.png){: width="700" height="auto" }
 ![Ida Nothing](/assets/img/abusingElf/ida-nothing.png){: width="700" height="auto" }
 
 GDB also cannot start debugging the file:
+
 ![Gdb](/assets/img/abusingElf/gdb.png){: width="700" height="auto" }
 
 #### **Checker**
@@ -290,6 +303,7 @@ rule Invalid_ELF_Header_Fields
 Use that yara only in hunting and not in production! Because all that checks are really heavy.
 
 Results:
+
 ![Yara](/assets/img/abusingElf/yara.png){: width="700" height="auto"}
 
 ## **Conclusion and Future Work**
